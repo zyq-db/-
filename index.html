@@ -55,7 +55,6 @@
         .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
         .btn-secondary { background: #3498db; color: white; }
         .btn-success { background: #2ecc71; color: white; }
-        .btn-warning { background: #f39c12; color: white; }
         .btn-danger { background: #e74c3c; color: white; }
         .btn-sm { padding: 6px 12px; font-size: 13px; }
         .task-table-container { overflow-x: auto; border-radius: 8px; border: 1px solid #eee; margin-bottom: 20px; }
@@ -79,6 +78,7 @@
         .notification { position: fixed; top: 20px; right: 20px; padding: 15px 20px; border-radius: 8px; background: #2ecc71; color: white; font-weight: 500; z-index: 1001; opacity: 0; transform: translateY(-20px); transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); }
         .notification.show { opacity: 1; transform: translateY(0); }
         .notification.error { background: #e74c3c; }
+        .notification.warning { background: #f39c12; }
         .empty-state { text-align: center; padding: 60px 20px; color: #95a5a6; }
         .empty-state i { font-size: 48px; margin-bottom: 15px; opacity: 0.5; }
         .progress-bar { height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; margin-bottom: 5px; }
@@ -93,10 +93,10 @@
         .person-selector { min-height: 100px; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; padding: 10px; background: white; }
         .person-option { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-bottom: 5px; border-radius: 4px; background: #f8f9fa; border: 1px solid #e0e0e0; cursor: pointer; }
         .person-option.selected { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-color: #667eea; }
-        @media (max-width: 1200px) { .main-layout { grid-template-columns: 1fr; } }
         .loading { display: flex; justify-content: center; align-items: center; height: 100vh; }
         .loading i { font-size: 48px; color: #667eea; animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
+        @media (max-width: 1200px) { .main-layout { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -452,209 +452,4 @@
             showNotification('角色添加成功！');
         }
 
-        function deleteRole(id) {
-            const role = roles.find(r => r.id === id);
-            const users = people.filter(p => p.role_id === id);
-            if (users.length > 0 && !confirm(`角色"${role.name}"有${users.length}个人员使用，删除将同时删除这些人员，确定吗？`)) return;
-            people = people.filter(p => p.role_id !== id);
-            roles = roles.filter(r => r.id !== id);
-            saveData();
-            render();
-            showNotification('角色已删除', 'warning');
-        }
-
-        function editRole(id) {
-            const role = roles.find(r => r.id === id);
-            const newName = prompt('新角色名称：', role.name);
-            if (newName && newName.trim()) {
-                role.name = newName.trim();
-                saveData();
-                render();
-                showNotification('角色已更新');
-            }
-        }
-
-        function openPersonModal() {
-            document.getElementById('person-modal').classList.add('show');
-        }
-
-        function closePersonModal() {
-            document.getElementById('person-modal').classList.remove('show');
-            document.getElementById('person-form').reset();
-        }
-
-        function savePerson(e) {
-            e.preventDefault();
-            const name = document.getElementById('person-name').value.trim();
-            const roleId = document.getElementById('person-role').value;
-            const department = document.getElementById('person-department').value;
-            if (!name || !roleId) { showNotification('请填写姓名和选择角色', 'error'); return; }
-            people.push({ id: crypto.randomUUID(), name, role_id: roleId, color: generateColor(), department });
-            closePersonModal();
-            saveData();
-            render();
-            showNotification('人员添加成功！');
-        }
-
-        function openTaskModal(taskId = null) {
-            editingTaskId = taskId;
-            selectedPeople = [];
-            const modal = document.getElementById('task-modal');
-            const title = document.getElementById('modal-title');
-            
-            if (taskId) {
-                title.textContent = '编辑任务';
-                const task = tasks.find(t => t.id === taskId);
-                if (task) {
-                    selectedPeople = [...(task.person_ids || [])];
-                    document.getElementById('task-title').value = task.title;
-                    document.getElementById('task-description').value = task.description;
-                    document.getElementById('task-week').value = task.week;
-                    document.getElementById('task-progress').value = task.progress;
-                    document.getElementById('progress-value').textContent = task.progress + '%';
-                    document.getElementById('task-status').value = task.status;
-                    document.getElementById('task-start-date').value = task.start_date;
-                    document.getElementById('task-due-date').value = task.due_date;
-                    document.getElementById('task-blockers').value = task.blockers.join('\n');
-                    document.getElementById('task-notes').value = task.notes;
-                }
-            } else {
-                title.textContent = '添加新任务';
-                document.getElementById('task-form').reset();
-                document.getElementById('progress-value').textContent = '0%';
-            }
-            
-            renderSelectedPeople();
-            renderPersonSelector();
-            modal.classList.add('show');
-        }
-
-        function closeTaskModal() {
-            document.getElementById('task-modal').classList.remove('show');
-            editingTaskId = null;
-            selectedPeople = [];
-        }
-
-        function togglePersonSelection(personId) {
-            if (selectedPeople.includes(personId)) selectedPeople = selectedPeople.filter(id => id !== personId);
-            else selectedPeople.push(personId);
-            renderSelectedPeople();
-            renderPersonSelector();
-        }
-
-        function renderSelectedPeople() {
-            const container = document.getElementById('selected-persons');
-            if (selectedPeople.length === 0) {
-                container.innerHTML = '<div style="color: #999; font-size: 13px; text-align: center; padding: 10px;">点击下方人员选项进行多选</div>';
-                return;
-            }
-            container.innerHTML = selectedPeople.map(personId => {
-                const person = people.find(p => p.id === personId);
-                if (!person) return '';
-                const role = roles.find(r => r.id === person.role_id);
-                return `
-                    <div class="selected-person">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${person.color}"></div>
-                            <span>${person.name}</span>
-                            ${role ? `<span style="opacity: 0.8;">(${role.name})</span>` : ''}
-                            <button class="remove-btn" onclick="togglePersonSelection('${person.id}')"><i class="fas fa-times"></i></button>
-                        </div>
-                    </div>`;
-            }).join('');
-        }
-
-        function renderPersonSelector() {
-            const selector = document.getElementById('person-selector');
-            selector.innerHTML = people.map(person => {
-                const role = roles.find(r => r.id === person.role_id);
-                const isSelected = selectedPeople.includes(person.id);
-                return `
-                    <div class="person-option ${isSelected ? 'selected' : ''}" onclick="togglePersonSelection('${person.id}')">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div class="person-avatar" style="background:${person.color};width:32px;height:32px;font-size:12px;">${getInitials(person.name)}</div>
-                            <div>
-                                <div style="font-weight: 500;">${person.name}</div>
-                                <div style="font-size: 12px; color: ${isSelected ? 'rgba(255,255,255,0.8)' : '#666'}">${role?.name || '未分配'}</div>
-                            </div>
-                        </div>
-                        ${isSelected ? '<i class="fas fa-check"></i>' : ''}
-                    </div>`;
-            }).join('');
-        }
-
-        function saveTask(e) {
-            e.preventDefault();
-            const title = document.getElementById('task-title').value.trim();
-            const week = document.getElementById('task-week').value;
-            const status = document.getElementById('task-status').value;
-            
-            if (!title || !week || !status) { showNotification('请填写所有必填字段', 'error'); return; }
-            if (selectedPeople.length === 0) { showNotification('请至少选择一位负责人', 'error'); return; }
-
-            const taskData = {
-                title,
-                description: document.getElementById('task-description').value,
-                person_ids: [...selectedPeople],
-                week,
-                progress: parseInt(document.getElementById('task-progress').value),
-                status,
-                start_date: document.getElementById('task-start-date').value,
-                due_date: document.getElementById('task-due-date').value,
-                blockers: document.getElementById('task-blockers').value.split('\n').filter(b => b.trim()),
-                notes: document.getElementById('task-notes').value,
-                updated_at: new Date().toISOString()
-            };
-
-            if (editingTaskId) {
-                const idx = tasks.findIndex(t => t.id === editingTaskId);
-                if (idx !== -1) tasks[idx] = { ...tasks[idx], ...taskData };
-            } else {
-                tasks.push({ id: crypto.randomUUID(), ...taskData, created_at: new Date().toISOString() });
-            }
-
-            saveData();
-            closeTaskModal();
-            render();
-            showNotification(editingTaskId ? '任务更新成功！' : '任务添加成功！');
-        }
-
-        function deleteTask(id) {
-            if (confirm('确定删除此任务？')) {
-                tasks = tasks.filter(t => t.id !== id);
-                saveData();
-                render();
-                showNotification('任务已删除', 'warning');
-            }
-        }
-
-        function updateTaskProgress(id, val) {
-            const task = tasks.find(t => t.id === id);
-            if (task) {
-                task.progress = Math.max(0, Math.min(100, parseInt(val)));
-                if (task.progress === 100) task.status = 'completed';
-                saveData();
-                render();
-            }
-        }
-
-        function showNotification(msg, type = 'success') {
-            const n = document.getElementById('notification');
-            n.textContent = msg;
-            n.className = `notification ${type} show`;
-            setTimeout(() => n.classList.remove('show'), 3000);
-        }
-
-        // 初始化
-        document.getElementById('task-progress').addEventListener('input', (e) => {
-            document.getElementById('progress-value').textContent = e.target.value + '%';
-        });
-
-        document.getElementById('new-role-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') { e.preventDefault(); addRole(); }
-        });
-
-        loadData();
-    </script>
-</body>
-</html>
+        function deleteRole(id
